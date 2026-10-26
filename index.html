@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dinner Drop Booth</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Layout: Purple Gold Glass system re-skinned for a streetwear dinner. Glass over a drifting asphalt wallpaper; chrome replaces silver/purple metal, safety orange replaces gold. Camera card left, strip card right, settings as grouped glass. */
+:root{
+  /* ground */
+  --bg:#0E0D0F; --bg-2:#18161A; --wall-top:#262225; --wall-floor:#080708;
+  /* text */
+  --text-1:#F6F3EF; --text-2:rgba(246,241,235,.88); --text-3:rgba(240,234,226,.70);
+  /* glass (recipe unchanged from the system) */
+  --separator:rgba(255,255,255,.10); --glass-stroke:rgba(255,255,255,.14);
+  --glass-top:rgba(255,255,255,.115); --glass-bottom:rgba(255,255,255,.045); --glass-tint:rgba(14,12,14,.46);
+  /* brand: graphite replaces purple */
+  --steel:#8E8A93; --steel-light:#CFCBD3; --graphite:#3A363C; --graphite-deep:#1C1A1E;
+  /* accent: safety orange replaces gold */
+  --hot-pale:#FFD2B8; --hot:#FF6A2B; --hot-deep:#D9430F; --hot-light:#FFB48A; --hot-ink:#1E0A02;
+  --success:#34C759;
+  --hot-fill:linear-gradient(135deg,#FFC9A6 0%,#FF7A3A 38%,#E2470F 72%,#FFA066 100%);
+  --icon-fill:linear-gradient(145deg,#5A555E 0%,#2E2B31 50%,#131214 100%);
+  --metal-chrome:linear-gradient(175deg,#FFFFFF 0%,#ECEAEE 38%,#9C98A3 62%,#F2F0F4 82%,#B9B5BF 100%);
+  --metal-hot:linear-gradient(175deg,#FFF1E6 0%,#FFC09A 30%,#FF6A2B 58%,#C23A0A 80%,#FFB07E 100%);
+  --font-sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI Variable","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --space-1:6px; --space-2:10px; --space-3:14px; --space-4:20px; --space-5:28px; --space-6:48px;
+  --radius-chip:10px; --radius-icon:15px; --radius-control:14px; --radius-card:22px; --radius-panel:28px; --radius-hero:36px; --radius-pill:999px;
+  --shadow-glass:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.04),0 30px 60px -30px rgba(0,0,0,.7),0 10px 24px -12px rgba(0,0,0,.45);
+  --shadow-hot:inset 0 1px 0 rgba(255,255,255,.55),0 12px 28px -12px rgba(255,106,43,.8);
+  --shadow-icon:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -2px 0 rgba(0,0,0,.3),0 10px 22px -10px rgba(0,0,0,.9);
+  --blur-glass:blur(30px) saturate(175%); --blur-sheet:blur(36px) saturate(170%);
+  --spring:cubic-bezier(.32,.72,0,1);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;background:var(--bg);color:var(--text-1);font-family:var(--font-sans);font-size:16.5px;line-height:1.55;letter-spacing:-.011em;overflow-x:hidden}
+
+/* ---------- wallpaper ---------- */
+.wall{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  background:radial-gradient(120% 90% at 30% 0%,var(--wall-top),var(--bg) 55%,var(--wall-floor))}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);animation:drift 40s ease-in-out infinite alternate}
+.o1{width:52vmax;height:52vmax;left:-14vmax;top:-16vmax;background:rgba(255,106,43,.42);animation-duration:38s}
+.o2{width:40vmax;height:40vmax;right:-12vmax;top:18vh;background:rgba(150,146,158,.30);animation-duration:46s}
+.o3{width:46vmax;height:46vmax;left:20vw;bottom:-22vmax;background:rgba(190,40,30,.34);animation-duration:34s}
+.o4{width:28vmax;height:28vmax;left:-6vmax;bottom:8vh;background:rgba(255,180,138,.16);animation-duration:42s}
+@keyframes drift{to{transform:translate(6vmax,4vmax) scale(1.08)}}
+.noise{position:absolute;inset:0;opacity:.06;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.glow{position:fixed;left:0;top:0;width:680px;height:680px;margin:-340px 0 0 -340px;border-radius:50%;pointer-events:none;z-index:1;
+  background:radial-gradient(circle,rgba(255,106,43,.34) 0%,rgba(255,180,138,.10) 40%,rgba(0,0,0,0) 70%);opacity:0;transition:opacity .4s}
+
+/* ---------- shell ---------- */
+.wrap{position:relative;z-index:2;max-width:1120px;margin:0 auto;padding-block:28px 64px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.glass{position:relative;background:linear-gradient(180deg,var(--glass-top),var(--glass-bottom)),var(--glass-tint);
+  -webkit-backdrop-filter:var(--blur-glass);backdrop-filter:var(--blur-glass);border:1px solid var(--glass-stroke);box-shadow:var(--shadow-glass);border-radius:var(--radius-panel)}
+.glass.hl::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:var(--hl,0);transition:opacity .3s;
+  background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.07),transparent 70%)}
+.ms,.mh{-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none;
+  filter:drop-shadow(0 2px 5px rgba(5,3,4,.5)) drop-shadow(0 0 20px rgba(5,3,4,.3))}
+.ms{color:#fff;background-image:var(--metal-chrome)}
+.mh{color:var(--hot);background-image:var(--metal-hot)}
+.label{font:600 12.5px/1 var(--font-sans);letter-spacing:.04em;text-transform:uppercase;color:var(--text-3)}
+
+/* ---------- hero ---------- */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-4);align-items:center;padding:var(--space-5);border-radius:var(--radius-hero);margin-bottom:var(--space-4)}
+.tab{position:absolute;width:58px;height:3px;background:var(--hot-fill);border-radius:3px}
+.tab.tl{top:-1px;left:36px}.tab.br{bottom:-1px;right:36px}
+.eyebrow{display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2)}
+.live{width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 0 4px rgba(52,199,89,.18)}
+.eyebrow .label{color:var(--hot-light)}
+h1{margin:0;font-weight:700;font-size:clamp(44px,9vw,92px);line-height:.98;letter-spacing:-.045em;text-wrap:balance}
+.lede{margin:var(--space-3) 0 0;color:var(--text-2);max-width:44ch}
+.seal{position:relative;width:132px;height:132px;flex:0 0 auto}
+.seal svg{position:absolute;inset:0;animation:spin 30s linear infinite}
+.seal text{fill:var(--hot-light);font:600 11.5px var(--font-sans);letter-spacing:.2em;text-transform:uppercase}
+.seal .core{position:absolute;inset:34px;border-radius:20px;background:var(--hot-fill);box-shadow:var(--shadow-hot);display:grid;place-items:center;color:var(--hot-ink);font:800 30px/1 var(--font-sans);letter-spacing:-.04em}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (max-width:560px){.hero{grid-template-columns:minmax(0,1fr)}.seal{display:none}}
+
+/* ---------- layout ---------- */
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:var(--space-4);align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{padding:var(--space-4);display:grid;gap:var(--space-3);min-width:0}
+.card-top{display:flex;align-items:center;gap:12px}
+.app{width:36px;height:36px;border-radius:var(--radius-chip);display:grid;place-items:center;color:var(--hot-light);background:var(--icon-fill);box-shadow:var(--shadow-icon);flex:0 0 auto}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.card-top h2{margin:0;font-weight:700;font-size:24px;line-height:1.15;letter-spacing:-.03em}
+.kind{padding:6px 11px;border-radius:var(--radius-pill);font:600 12.5px/1 var(--font-sans);color:var(--steel-light);background:rgba(207,203,211,.14);white-space:nowrap}
+.kind.hot{color:var(--hot-light);background:rgba(255,106,43,.18)}
+.card-top .no{margin-left:auto}
+
+/* ---------- camera ---------- */
+.stage{position:relative;aspect-ratio:4/3;max-width:100%;border-radius:var(--radius-card);overflow:hidden;background:var(--bg-2);box-shadow:inset 0 0 0 1px var(--glass-stroke)}
+.stage video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+.idle{position:absolute;inset:0;display:grid;place-content:center;gap:var(--space-2);text-align:center;padding:var(--space-4)}
+.idle .big{font-weight:700;font-size:clamp(28px,5.5vw,44px);line-height:1.02;letter-spacing:-.04em}
+.idle p{margin:0 auto;color:var(--text-2);font-size:14.5px;max-width:36ch}
+.dots{position:absolute;right:16px;bottom:16px;display:grid;grid-template-columns:repeat(6,4px);gap:16px;opacity:.35}
+.dots i{width:4px;height:4px;border-radius:50%;background:var(--hot)}
+.count{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;font-weight:800;font-size:clamp(120px,26vw,220px);letter-spacing:-.06em;line-height:1}
+.count span{display:block;animation:pop .9s var(--spring)}
+@keyframes pop{from{transform:scale(1.4);opacity:0}30%{opacity:1}to{transform:scale(1)}}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.flash.go{animation:flash .45s ease-out}
+@keyframes flash{0%{opacity:.95}100%{opacity:0}}
+.badge{position:absolute;top:12px;left:12px;padding:6px 11px;border-radius:var(--radius-pill);font:600 12.5px/1 var(--font-sans);letter-spacing:.04em;color:var(--text-1);
+  background:rgba(14,12,14,.5);-webkit-backdrop-filter:var(--blur-glass);backdrop-filter:var(--blur-glass);border:1px solid var(--glass-stroke);font-variant-numeric:tabular-nums}
+
+.thumbs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-2)}
+.thumbs[data-n="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}
+.thumbs[data-n="1"]{grid-template-columns:minmax(0,1fr);max-width:140px}
+.thumb{aspect-ratio:4/3;border-radius:var(--radius-chip);background:rgba(255,255,255,.06);border:1px solid var(--separator);overflow:hidden;display:grid;place-items:center;font:600 15px/1 var(--font-sans);color:var(--text-3);font-variant-numeric:tabular-nums;transition:border-color .35s var(--spring)}
+.thumb.next{border-color:rgba(255,106,43,.7);color:var(--hot-light)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ---------- buttons ---------- */
+.row{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;height:50px;padding:0 24px;border-radius:var(--radius-pill);font:600 16px/1 var(--font-sans);letter-spacing:-.011em;border:0;cursor:pointer;transition:transform .35s var(--spring),opacity .2s}
+.btn:active{transform:scale(.96)}
+.btn .ic{transition:transform .35s var(--spring)}
+.btn:hover .ic.arrow{transform:translateX(3px)}
+.btn.hot{color:var(--hot-ink);background:var(--hot-fill);box-shadow:var(--shadow-hot)}
+.btn.glassb{color:var(--text-1);background:rgba(255,255,255,.1);border:1px solid var(--glass-stroke);box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn.grow{flex:1 1 200px}
+.btn:focus-visible,.seg button:focus-visible,input:focus-visible,.sw:focus-visible{outline:2px solid var(--hot-light);outline-offset:3px}
+.note{margin:0;font-size:13px;line-height:1.4;font-weight:500;color:var(--text-3)}
+.note.warn{color:var(--hot-light)}
+
+/* ---------- grouped settings ---------- */
+.group-h{margin:var(--space-2) 0 0 16px}
+.list{list-style:none;margin:0;padding:0;border-radius:var(--radius-card);overflow:hidden}
+.list li{position:relative;display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:12px 16px;flex-wrap:wrap}
+.list li+li::before{content:"";position:absolute;left:16px;right:0;top:0;height:1px;background:var(--separator)}
+.list strong{font:600 15.5px/1.3 var(--font-sans)}
+.list input[type=text]{flex:1 1 160px;min-width:0;text-align:right;font:500 15px/1.3 var(--font-sans);color:var(--hot-light);background:transparent;border:0;padding:6px 0;border-radius:6px}
+.seg{position:relative;display:inline-flex;padding:4px;border-radius:var(--radius-control);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);max-width:100%}
+.seg .thumbx{position:absolute;top:4px;left:0;height:calc(100% - 8px);border-radius:var(--radius-chip);background:rgba(255,255,255,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 4px 12px -4px rgba(0,0,0,.5);transition:transform .45s var(--spring),width .45s var(--spring)}
+.seg button{position:relative;height:34px;padding:0 12px;border:0;background:none;border-radius:var(--radius-chip);color:var(--text-2);font:600 14px/1 var(--font-sans);cursor:pointer;white-space:nowrap}
+.seg button[aria-checked="true"]{color:var(--text-1)}
+.swatches{display:flex;gap:var(--space-2)}
+.sw{width:30px;height:30px;padding:0;border-radius:var(--radius-chip);cursor:pointer;border:1px solid rgba(255,255,255,.25);box-shadow:inset 0 1px 0 rgba(255,255,255,.35);transition:transform .35s var(--spring)}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--hot)}
+.sw:active{transform:scale(.92)}
+
+/* ---------- strip card ---------- */
+.hang{display:grid;justify-items:center;padding:var(--space-2) 0}
+#strip{max-width:100%;height:auto;max-height:72vh;border-radius:6px;box-shadow:0 30px 60px -24px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.08);transform:rotate(1.2deg)}
+.bar{width:64px;height:4px;border-radius:4px;background:var(--hot-fill)}
+.out{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--space-3);align-items:center;padding:var(--space-3);border-radius:18px;
+  background:linear-gradient(180deg,rgba(255,180,138,.16),rgba(226,71,15,.07));border:1px solid rgba(255,140,90,.3)}
+#qr{background:#fff;padding:8px;border-radius:12px;line-height:0}
+#qr img,#qr canvas{width:116px;height:116px}
+.out b{display:block;font:600 12.5px/1.4 var(--font-sans);letter-spacing:.04em;text-transform:uppercase;color:var(--hot-light)}
+.out .t{display:block;font-weight:700;font-size:20px;line-height:1.2;letter-spacing:-.025em;margin:2px 0 4px}
+.out p{margin:0;font-size:14px;line-height:1.45;color:var(--text-2)}
+.out .link{font-size:12px;color:var(--text-3);word-break:break-all;margin-top:6px}
+@media (max-width:420px){.out{grid-template-columns:minmax(0,1fr)}}
+.status{margin:0;text-align:center;font-size:13px;font-weight:500;color:var(--text-2);min-height:1.4em}
+
+/* ---------- HUD ---------- */
+.hud{position:fixed;left:50%;top:50%;z-index:20;min-width:180px;max-width:min(280px,80vw);padding:22px 20px 18px;border-radius:var(--radius-card);text-align:center;
+  background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.06)),rgba(14,12,14,.6);-webkit-backdrop-filter:var(--blur-sheet);backdrop-filter:var(--blur-sheet);
+  border:1px solid var(--glass-stroke);box-shadow:var(--shadow-glass);transform:translate(-50%,-50%) scale(.9);opacity:0;pointer-events:none;transition:transform .45s var(--spring),opacity .25s}
+.hud.show{transform:translate(-50%,-50%) scale(1);opacity:1}
+.hud .tick{width:44px;height:44px;margin:0 auto 10px;border-radius:50%;display:grid;place-items:center;background:var(--hot-fill);color:var(--hot-ink)}
+.hud .tick .ic{width:22px;height:22px;stroke-width:2.4}
+.hud div:last-child{font-weight:600;font-size:15px}
+
+.hidden-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wall" aria-hidden="true"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span><span class="noise"></span></div>
+<div class="glow" id="glow" aria-hidden="true"></div>
+
+<div class="wrap">
+  <header class="glass hero hl">
+    <span class="tab tl"></span><span class="tab br"></span>
+    <div>
+      <div class="eyebrow"><span class="live"></span><span class="label" id="dropLabel">Drop 001 · Booth live</span></div>
+      <h1><span class="ms">Dinner</span> <span class="mh">Drop</span></h1>
+      <p class="lede">Pull up, show the fit, and take your strip home on your phone. No prints, straight to the album.</p>
+    </div>
+    <div class="seal" aria-hidden="true">
+      <svg viewBox="0 0 132 132"><defs><path id="ring" d="M66,66 m-54,0 a54,54 0 1,1 108,0 a54,54 0 1,1 -108,0"/></defs>
+        <text><textPath href="#ring">Dinner Drop · No prints · Fit check ·</textPath></text></svg>
+      <div class="core">DD</div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="glass card hl" aria-label="Camera">
+      <div class="card-top">
+        <span class="app"><svg class="ic" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>
+        <h2>Fit check</h2>
+        <span class="kind no" id="modeTag">Camera off</span>
+      </div>
+
+      <div class="stage">
+        <video id="video" playsinline muted hidden></video>
+        <div class="idle" id="idle">
+          <div class="big"><span class="ms">Pull up.</span><br><span class="mh">Show the fit.</span></div>
+          <p id="idleText">Start the camera, then press Shoot. You get a 3-second countdown before every photo.</p>
+        </div>
+        <div class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="count" id="count" aria-live="assertive"></div>
+        <div class="flash" id="flash"></div>
+        <div class="badge" id="badge" hidden></div>
+      </div>
+
+      <div class="thumbs" id="thumbs" data-n="4"></div>
+
+      <div class="row">
+        <button class="btn hot grow" id="startBtn" type="button">Start camera <svg class="ic arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        <button class="btn hot grow" id="shootBtn" type="button" hidden>Shoot</button>
+        <button class="btn hot grow" id="snapBtn" type="button" hidden>Take photo 1 of 4</button>
+        <button class="btn glassb" id="resetBtn" type="button">Next guest</button>
+        <input class="hidden-input" id="fileIn" type="file" accept="image/*" capture="user" tabindex="-1" aria-hidden="true">
+      </div>
+      <p class="note" id="camNote"></p>
+
+      <div class="label group-h">Host settings</div>
+      <ul class="glass list">
+        <li><strong>Event name</strong><input type="text" id="eventName" maxlength="28" value="Streetwear Dinner" aria-label="Event name"></li>
+        <li><strong>Layout</strong>
+          <div class="seg" role="radiogroup" aria-label="Layout" id="segLayout"><span class="thumbx"></span>
+            <button type="button" role="radio" data-v="4" aria-checked="true">4 shots</button>
+            <button type="button" role="radio" data-v="3" aria-checked="false">3 shots</button>
+            <button type="button" role="radio" data-v="1" aria-checked="false">Single</button>
+          </div></li>
+        <li><strong>Look</strong>
+          <div class="seg" role="radiogroup" aria-label="Look" id="segLook"><span class="thumbx"></span>
+            <button type="button" role="radio" data-v="colour" aria-checked="true">Colour</button>
+            <button type="button" role="radio" data-v="mono" aria-checked="false">Mono</button>
+            <button type="button" role="radio" data-v="grit" aria-checked="false">Grit</button>
+          </div></li>
+        <li><strong>Colourway</strong><div class="swatches" id="swatches" role="group" aria-label="Strip colourway"></div></li>
+      </ul>
+    </section>
+
+    <section class="glass card hl" aria-label="Your strip">
+      <div class="card-top">
+        <span class="app"><svg class="ic" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="1.5"/><path d="M7 8h10M7 13h10"/></svg></span>
+        <h2>Your strip</h2>
+        <span class="kind hot no" id="stripTag">Sample</span>
+      </div>
+      <div class="bar" aria-hidden="true"></div>
+      <div class="hang"><canvas id="strip" width="600" height="1800" aria-label="Photo strip preview"></canvas></div>
+
+      <div class="out" id="cop" hidden>
+        <div id="qr" aria-label="QR code linking to your strip"></div>
+        <div><b>Saved to album</b><span class="t">Scan to cop your strip</span>
+          <p>Point your phone camera at the code to open the photo in Google Drive and save it.</p>
+          <div class="link" id="copLink"></div></div>
+      </div>
+
+      <div class="row">
+        <button class="btn glassb grow" id="saveBtn" type="button" disabled>Download strip</button>
+        <button class="btn glassb grow" id="retryBtn" type="button" hidden>Retry upload</button>
+      </div>
+      <p class="status" id="status" role="status">The strip fills in as you shoot.</p>
+    </section>
+  </div>
+</div>
+
+<div class="hud" id="hud" role="status" aria-live="polite"><div class="tick"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><div id="hudText">Saved</div></div>
+
+<script>
+/* ===== BOOTH CONFIG: fill these two in after deploying Code.gs ===== */
+const BOOTH_ENDPOINT = "https://script.google.com/macros/s/AKfycbxfvX_TNe67HnfMDK1zALcwWIJt25KksPZxY9Wr2GxAuYGufYaQpKynX5iY0DLb9GUFjA/exec";
+const BOOTH_TOKEN    = "dd-Brk_fdikEYv-56tGVLUSJTMK";
+/* =================================================================== */
+(() => {
+  const SANS='-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+  const FRAMES = {
+    bone:     {bg:"#EFE9DD", ink:"#161416", hit:"#FF6A2B", label:"Bone"},
+    blackout: {bg:"#141214", ink:"#F6F3EF", hit:"#FF6A2B", label:"Blackout"},
+    safety:   {bg:"#FF6A2B", ink:"#1E0A02", hit:"#1E0A02", label:"Safety orange"},
+    chrome:   {bg:"#C9C6CC", ink:"#161416", hit:"#E2470F", label:"Chrome"}
+  };
+  const S = { n:4, frame:"bone", filter:"colour", shots:[], mode:"idle", busy:false, uploaded:false, uploading:false };
+  const $ = id => document.getElementById(id);
+  const video=$("video"), strip=$("strip"), thumbs=$("thumbs");
+  const PW=540, PH=405, M=30, GAP=20, FOOT=200;
+  const DRIVE = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(BOOTH_ENDPOINT);
+  let downloadsApi=null, stripNo=1;
+  try{ stripNo = +(localStorage.getItem("dd_no")||1); }catch(e){}
+
+  // ---------- HUD ----------
+  let hudT; function hud(t){ $("hudText").textContent=t; $("hud").classList.add("show"); clearTimeout(hudT); hudT=setTimeout(()=>$("hud").classList.remove("show"),1600); }
+  const setStatus=t=>{ $("status").textContent=t; };
+
+  // ---------- sample shots ----------
+  function sampleShot(i){
+    const c=document.createElement("canvas"); c.width=PW; c.height=PH; const x=c.getContext("2d");
+    const g=x.createLinearGradient(0,0,PW,PH); const pair=[["#4A3A36","#1A1517"],["#3A3E44","#141518"],["#5A3324","#1C1210"],["#403A44","#161417"]][i%4];
+    g.addColorStop(0,pair[0]); g.addColorStop(1,pair[1]); x.fillStyle=g; x.fillRect(0,0,PW,PH);
+    x.fillStyle="rgba(255,106,43,.75)"; x.fillRect(0,PH-56,PW,10);
+    x.fillStyle="rgba(8,6,8,.62)";
+    [[180,1],[360,.9]].forEach(([cx,s],k)=>{ const o=(i%2?-1:1)*k*16;
+      x.beginPath(); x.arc(cx+o,150*s+40,56*s,0,Math.PI*2); x.fill();
+      x.beginPath(); if(x.roundRect) x.roundRect(cx+o-100*s,215*s+40,200*s,260,40); else x.rect(cx+o-100*s,215*s+40,200*s,260); x.fill(); });
+    x.save(); x.translate(PW/2,PH/2); x.rotate(-.16);
+    x.font=`600 28px ${SANS}`; x.fillStyle="rgba(246,243,239,.55)"; x.textAlign="center"; x.fillText("S A M P L E",0,10); x.restore();
+    return {canvas:c, sample:true};
+  }
+  function fillSamples(){ S.shots=Array.from({length:S.n},(_,i)=>sampleShot(i)); S.uploaded=false; }
+  const realCount=()=>S.shots.filter(s=>s&&!s.sample).length;
+  const nextIndex=()=>S.shots.findIndex(s=>!s||s.sample);
+
+  // ---------- looks ----------
+  function applyLook(src){
+    if(S.filter==="colour") return src;
+    const c=document.createElement("canvas"); c.width=src.width; c.height=src.height;
+    const x=c.getContext("2d"); x.drawImage(src,0,0);
+    const d=x.getImageData(0,0,c.width,c.height), p=d.data;
+    for(let i=0;i<p.length;i+=4){
+      const r=p[i],g=p[i+1],b=p[i+2], l=.3*r+.59*g+.11*b;
+      if(S.filter==="mono"){ const v=(l-128)*1.15+128; p[i]=p[i+1]=p[i+2]=v; }
+      else { const k=1.45; p[i]=(r*.55+l*.45-128)*k+128; p[i+1]=(g*.55+l*.45-128)*k+128; p[i+2]=(b*.55+l*.45-128)*k+128; }
+    }
+    x.putImageData(d,0,0); return c;
+  }
+
+  // ---------- strip ----------
+  const pad=v=>String(v).padStart(2,"0");
+  const dateStamp=()=>{const d=new Date();return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}`;};
+  function barcode(x,X,Y,w,h,seed,col){ let s=seed>>>0||7, cx=X; x.fillStyle=col;
+    while(cx<X+w){ s=(s*1664525+1013904223)>>>0; const bw=1+(s%4); if((s>>8)%3) x.fillRect(cx,Y,bw,h); cx+=bw+1+((s>>4)%3); } }
+  function drawStrip(target){
+    const F=FRAMES[S.frame], n=S.n, W=PW+M*2, H=M+n*PH+(n-1)*GAP+FOOT;
+    target.width=W; target.height=H; const x=target.getContext("2d");
+    x.fillStyle=F.bg; x.fillRect(0,0,W,H);
+    for(let i=0;i<n;i++){ const y=M+i*(PH+GAP), s=S.shots[i]; if(s) x.drawImage(applyLook(s.canvas),M,y,PW,PH); }
+    const fy=M+n*PH+(n-1)*GAP;
+    x.fillStyle=F.hit; x.fillRect(M,fy+22,64,6); x.fillRect(W-M-58,fy+22,58,3);
+    const name=(($("eventName").value||"").trim()||"Dinner Drop");
+    x.fillStyle=F.ink; x.textAlign="left";
+    let size=62; const font=sz=>`800 ${sz}px ${SANS}`; x.font=font(size);
+    while(x.measureText(name).width>PW && size>26){ size-=2; x.font=font(size); }
+    x.fillText(name,M,fy+40+size*.9);
+    x.font=`600 17px ${SANS}`;
+    x.fillText(`${dateStamp()}  ·  STRIP NO. ${String(stripNo).padStart(4,"0")}`,M,fy+148);
+    x.globalAlpha=.7; x.fillText("NO PRINTS · DIGITAL ONLY",M,fy+174); x.globalAlpha=1;
+    barcode(x,W-M-150,fy+128,150,50,stripNo*7919+n,F.ink);
+    return target;
+  }
+  function render(){
+    drawStrip(strip);
+    const done=realCount(), n=S.n, ni=nextIndex(), complete=done===n;
+    thumbs.dataset.n=n; thumbs.innerHTML="";
+    for(let i=0;i<n;i++){
+      const t=document.createElement("div"); t.className="thumb"; const s=S.shots[i];
+      if(s&&!s.sample){ const im=new Image(); im.alt=`Photo ${i+1}`; im.src=applyLook(s.canvas).toDataURL("image/jpeg",.7); t.appendChild(im); }
+      else { t.textContent=i+1; if(i===ni&&S.mode!=="idle") t.classList.add("next"); }
+      thumbs.appendChild(t);
+    }
+    $("dropLabel").textContent=`Drop ${String(stripNo).padStart(3,"0")} · Booth live`;
+    $("saveBtn").disabled=!complete;
+    $("stripTag").textContent= done===0?"Sample":complete?(S.uploaded?"In the album":"Ready"):`${done} of ${n}`;
+    $("snapBtn").textContent= complete?"All photos taken":`Take photo ${ni+1} of ${n}`;
+    $("snapBtn").disabled=complete;
+    $("shootBtn").disabled=S.busy;
+    $("shootBtn").textContent= complete?"Shoot again":"Shoot";
+  }
+
+  // ---------- capture ----------
+  function cropTo43(src,sw,sh,mirror){
+    const c=document.createElement("canvas"); c.width=PW*2; c.height=PH*2; const x=c.getContext("2d");
+    let cw=sw, ch=sh; if(sw/sh>4/3) cw=sh*4/3; else ch=sw*3/4;
+    if(mirror){ x.translate(c.width,0); x.scale(-1,1); }
+    x.drawImage(src,(sw-cw)/2,(sh-ch)/2,cw,ch,0,0,c.width,c.height); return c;
+  }
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  function flash(){ const f=$("flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
+  function onShotAdded(){ render(); if(realCount()===S.n) finish(); }
+
+  async function startCamera(){
+    try{
+      if(!navigator.mediaDevices?.getUserMedia) throw 0;
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:1280},height:{ideal:960}},audio:false});
+      video.srcObject=stream; await video.play();
+      video.hidden=false; $("idle").hidden=true; S.mode="live";
+      $("startBtn").hidden=true; $("shootBtn").hidden=false; $("modeTag").textContent="Live";
+      try{ await navigator.wakeLock?.request("screen"); }catch(e){}
+      setStatus("Camera on. Press Shoot when the whole crew is in frame.");
+    }catch(e){
+      S.mode="upload"; $("startBtn").hidden=true; $("snapBtn").hidden=false; $("modeTag").textContent="Device camera";
+      $("idleText").textContent="Live preview is blocked on this page, so each photo opens the device camera. Snap, confirm, and it lands on the strip.";
+      $("camNote").textContent="Live preview unavailable here. Device camera mode is on."; $("camNote").classList.add("warn");
+    }
+    render();
+  }
+  async function shootSequence(){
+    if(S.busy) return;
+    if(realCount()===S.n) newGuest(false);
+    S.busy=true; render(); const badge=$("badge"); badge.hidden=false;
+    let i=nextIndex();
+    while(i!==-1){
+      badge.textContent=`Shot ${i+1} of ${S.n}`;
+      for(const k of [3,2,1]){ $("count").innerHTML=`<span class="mh">${k}</span>`; await wait(900); }
+      $("count").innerHTML=""; flash();
+      S.shots[i]={canvas:cropTo43(video,video.videoWidth,video.videoHeight,true),sample:false};
+      render(); i=nextIndex(); if(i!==-1) await wait(1100);
+    }
+    badge.hidden=true; S.busy=false; onShotAdded();
+  }
+  $("fileIn").addEventListener("change",e=>{
+    const f=e.target.files?.[0]; e.target.value=""; if(!f) return;
+    const url=URL.createObjectURL(f), im=new Image();
+    im.onload=()=>{ const i=nextIndex(); if(i===-1) return;
+      S.shots[i]={canvas:cropTo43(im,im.naturalWidth,im.naturalHeight,false),sample:false};
+      URL.revokeObjectURL(url); flash();
+      if(realCount()<S.n) setStatus(`Photo ${i+1} in. ${S.n-realCount()} to go.`);
+      onShotAdded(); };
+    im.onerror=()=>setStatus("That file isn't a photo the booth can read. Try a JPG or PNG.");
+    im.src=url;
+  });
+
+  // ---------- Drive upload + QR ----------
+  const fileName=()=>{ const d=new Date(); const ev=(($("eventName").value||"booth").trim().replace(/[^\w]+/g,"-")).slice(0,24);
+    return `${ev}_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}_no${stripNo}.jpg`; };
+  function finish(){ if(DRIVE) upload(); else { setStatus("Strip ready. Download it to keep it."); hud("Strip ready"); } }
+  function upload(){
+    if(S.uploading||S.uploaded) return;
+    S.uploading=true; $("retryBtn").hidden=true; setStatus("Saving to the album…");
+    const data=drawStrip(document.createElement("canvas")).toDataURL("image/jpeg",.9).split(",")[1];
+    // text/plain body keeps this a simple request, so no CORS preflight (Apps Script can't answer one)
+    fetch(BOOTH_ENDPOINT,{method:"POST",body:JSON.stringify({token:BOOTH_TOKEN,filename:fileName(),image:data})})
+      .then(r=>r.json())
+      .then(r=>{ if(!r.ok) throw new Error(r.error||"Upload refused");
+        S.uploading=false; S.uploaded=true; showQR(r.view); setStatus("Saved to the album."); hud("Saved to album"); render(); })
+      .catch(err=>{ S.uploading=false; $("retryBtn").hidden=false;
+        setStatus(/token/i.test(err.message)?"Upload refused: the booth token doesn't match Code.gs.":"Couldn't reach Google Drive. Check the Wi-Fi, then tap Retry upload."); });
+  }
+  function showQR(url){
+    const box=$("qr"); box.innerHTML="";
+    if(window.QRCode) new QRCode(box,{text:url,width:232,height:232,colorDark:"#161416",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});
+    $("copLink").textContent=url; $("cop").hidden=false;
+  }
+  $("retryBtn").addEventListener("click",upload);
+
+  // ---------- download ----------
+  $("saveBtn").addEventListener("click",async()=>{
+    const blob=await new Promise(r=>drawStrip(document.createElement("canvas")).toBlob(r,"image/jpeg",.92));
+    const name=fileName();
+    if(downloadsApi){ try{ await downloadsApi.save({filename:name,data:blob}); hud("Downloaded"); return; }
+      catch(err){ if(err?.code==="declined"){ setStatus("Download cancelled."); return; } } }
+    try{ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000); hud("Downloaded"); }
+    catch(e){ setStatus("Download blocked here. Long-press the strip to save it."); }
+  });
+
+  // ---------- next guest ----------
+  function newGuest(announce=true){
+    if(S.busy) return;
+    if(realCount()===S.n){ stripNo++; try{ localStorage.setItem("dd_no",stripNo); }catch(e){} }
+    fillSamples(); $("cop").hidden=true; $("retryBtn").hidden=true; render();
+    if(announce){ setStatus("Ready for the next guest."); hud("Next guest"); }
+  }
+  $("resetBtn").addEventListener("click",()=>newGuest(true));
+
+  // ---------- segmented controls ----------
+  function seg(id,onPick){
+    const el=$(id), th=el.querySelector(".thumbx"), btns=[...el.querySelectorAll("button")];
+    const place=()=>{ const on=btns.find(b=>b.getAttribute("aria-checked")==="true"); if(!on) return;
+      th.style.width=on.offsetWidth+"px"; th.style.transform=`translateX(${on.offsetLeft}px)`; };
+    const set=v=>{ btns.forEach(b=>b.setAttribute("aria-checked",b.dataset.v===String(v))); place(); };
+    btns.forEach(b=>b.addEventListener("click",()=>{ set(b.dataset.v); onPick(b.dataset.v); }));
+    window.addEventListener("resize",place);
+    return {set,place};
+  }
+  const segLayout=seg("segLayout",v=>{ const keep=S.shots.filter(s=>s&&!s.sample); S.n=+v; fillSamples(); keep.slice(0,S.n).forEach((s,i)=>S.shots[i]=s); remember(); render(); });
+  const segLook=seg("segLook",v=>{ S.filter=v; remember(); render(); });
+
+  Object.entries(FRAMES).forEach(([k,f])=>{
+    const b=document.createElement("button"); b.type="button"; b.className="sw"; b.style.background=f.bg;
+    b.setAttribute("aria-label",`${f.label} colourway`); b.setAttribute("aria-pressed",k===S.frame);
+    b.addEventListener("click",()=>{ S.frame=k; document.querySelectorAll(".sw").forEach(s=>s.setAttribute("aria-pressed",s===b)); remember(); render(); });
+    $("swatches").appendChild(b);
+  });
+  $("eventName").addEventListener("input",()=>drawStrip(strip));
+  $("eventName").addEventListener("change",remember);
+  $("startBtn").addEventListener("click",startCamera);
+  $("snapBtn").addEventListener("click",()=>$("fileIn").click());
+  $("shootBtn").addEventListener("click",shootSequence);
+  function remember(){ try{ localStorage.setItem("dd_cfg",JSON.stringify({event:$("eventName").value,frame:S.frame,n:S.n,filter:S.filter})); }catch(e){} }
+  try{ const c=JSON.parse(localStorage.getItem("dd_cfg")||"{}");
+    if(c.event) $("eventName").value=c.event;
+    if(FRAMES[c.frame]) S.frame=c.frame;
+    if([1,3,4].includes(c.n)) S.n=c.n;
+    if(["colour","mono","grit"].includes(c.filter)) S.filter=c.filter;
+    document.querySelectorAll(".sw").forEach((s,i)=>s.setAttribute("aria-pressed",Object.keys(FRAMES)[i]===S.frame));
+  }catch(e){}
+  segLayout.set(S.n); segLook.set(S.filter);
+
+  // ---------- cursor glow + glass highlight (pointer devices only) ----------
+  if(matchMedia("(hover:hover) and (pointer:fine)").matches && !matchMedia("(prefers-reduced-motion:reduce)").matches){
+    const g=$("glow"); let tx=innerWidth/2, ty=innerHeight/2, cx=tx, cy=ty;
+    addEventListener("pointermove",e=>{ tx=e.clientX; ty=e.clientY; g.style.opacity=1;
+      document.querySelectorAll(".glass.hl").forEach(el=>{ const r=el.getBoundingClientRect();
+        const inside=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
+        el.style.setProperty("--hl",inside?1:0);
+        if(inside){ el.style.setProperty("--mx",(e.clientX-r.left)+"px"); el.style.setProperty("--my",(e.clientY-r.top)+"px"); } }); });
+    document.addEventListener("pointerleave",()=>g.style.opacity=0);
+    (function loop(){ cx+=(tx-cx)*.12; cy+=(ty-cy)*.12; g.style.transform=`translate(${cx}px,${cy}px)`; requestAnimationFrame(loop); })();
+  }
+
+  fillSamples(); render();
+  requestAnimationFrame(()=>{ segLayout.place(); segLook.place(); });
+  if(window.claude?.use) window.claude.use("downloads").then(d=>{downloadsApi=d;}).catch(()=>{});
+})();
+</script>
+</body>
+</html>
