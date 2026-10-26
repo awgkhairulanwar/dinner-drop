@@ -296,7 +296,7 @@ const BOOTH_TOKEN    = "dd-Brk_fdikEYv-56tGVLUSJTMK";
     safety:   {bg:"#FF6A2B", ink:"#1E0A02", hit:"#1E0A02", label:"Safety orange"},
     chrome:   {bg:"#C9C6CC", ink:"#161416", hit:"#E2470F", label:"Chrome"}
   };
-  const S = { n:4, frame:"bone", filter:"colour", shots:[], mode:"idle", busy:false, uploaded:false, uploading:false, facing:"user", stream:null, props:true };
+  const S = { n:4, frame:"bone", filter:"colour", shots:[], mode:"idle", busy:false, uploaded:false, uploading:false, facing:"user", stream:null, props:true, camId:null, camLabel:"", mirror:true };
   const $ = id => document.getElementById(id);
   const video=$("video"), strip=$("strip"), thumbs=$("thumbs");
   const PW=540, PH=405, M=30, GAP=20, FOOT=200;
@@ -520,15 +520,24 @@ const BOOTH_TOKEN    = "dd-Brk_fdikEYv-56tGVLUSJTMK";
   function onShotAdded(){ render(); if(realCount()===S.n) finish(); }
 
   const camName=()=>S.facing==="user"?"Front":"Rear";
+  const shortLabel=l=>{ l=(l||"").replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)/i,"").trim(); return l.length>26?l.slice(0,25)+"…":l; };
+  try{ S.camId=localStorage.getItem("dd_cam")||null; }catch(e){}
   async function openStream(){
     if(S.stream) S.stream.getTracks().forEach(t=>t.stop());
-    const base={width:{ideal:1280},height:{ideal:960}};
-    let stream;
-    try{ stream=await navigator.mediaDevices.getUserMedia({video:{...base,facingMode:{exact:S.facing}},audio:false}); }
-    catch(e){ stream=await navigator.mediaDevices.getUserMedia({video:{...base,facingMode:S.facing},audio:false}); }
+    const base={width:{ideal:1920},height:{ideal:1440}};
+    let stream=null;
+    if(S.camId){ try{ stream=await navigator.mediaDevices.getUserMedia({video:{...base,deviceId:{exact:S.camId}},audio:false}); }catch(e){ S.camId=null; } }
+    if(!stream){
+      try{ stream=await navigator.mediaDevices.getUserMedia({video:{...base,facingMode:{exact:S.facing}},audio:false}); }
+      catch(e){ stream=await navigator.mediaDevices.getUserMedia({video:{...base,facingMode:S.facing},audio:false}); }
+    }
     S.stream=stream; video.srcObject=stream; await video.play();
-    video.classList.toggle("rear",S.facing==="environment");
-    $("modeTag").textContent=`Live · ${camName()}`;
+    const tr=stream.getVideoTracks()[0], st=tr.getSettings?tr.getSettings():{};
+    S.camId=st.deviceId||S.camId; S.camLabel=tr.label||"";
+    S.mirror= st.facingMode==="user" || (!st.facingMode && /front|facetime|integrated|built-in/i.test(S.camLabel));
+    if(st.facingMode==="environment") S.mirror=false;
+    video.classList.toggle("rear",!S.mirror);
+    $("modeTag").textContent=`Live · ${st.facingMode==="user"?"Front":st.facingMode==="environment"?"Rear":(shortLabel(S.camLabel)||"Camera")}`;
   }
   async function startCamera(){
     try{
@@ -555,7 +564,7 @@ const BOOTH_TOKEN    = "dd-Brk_fdikEYv-56tGVLUSJTMK";
       badge.textContent=`Shot ${i+1} of ${S.n}`;
       for(const k of [3,2,1]){ $("count").innerHTML=`<span class="mh">${k}</span>`; await wait(900); }
       $("count").innerHTML=""; flash();
-      S.shots[i]={canvas:cropTo43(video,video.videoWidth,video.videoHeight,S.facing==="user"),sample:false};
+      S.shots[i]={canvas:cropTo43(video,video.videoWidth,video.videoHeight,S.mirror),sample:false};
       render(); i=nextIndex(); if(i!==-1) await wait(1100);
     }
     badge.hidden=true; S.busy=false; onShotAdded();
@@ -646,9 +655,16 @@ const BOOTH_TOKEN    = "dd-Brk_fdikEYv-56tGVLUSJTMK";
     $("fileIn").setAttribute("capture",S.facing);
     if(S.mode==="live"){
       $("flipBtn").disabled=true;
-      try{ await openStream(); }
-      catch(e){ S.facing=prev; $("fileIn").setAttribute("capture",prev); try{ await openStream(); }catch(_){} setStatus("This device couldn't switch cameras."); $("flipBtn").disabled=false; return; }
+      const prevId=S.camId;
+      try{
+        const cams=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==="videoinput"&&d.deviceId);
+        if(cams.length>1){ const i=cams.findIndex(c=>c.deviceId===S.camId); S.camId=cams[(i+1)%cams.length].deviceId; } else S.camId=null;
+        await openStream();
+        try{ localStorage.setItem("dd_cam",S.camId||""); }catch(e){}
+      }
+      catch(e){ S.facing=prev; S.camId=prevId; $("fileIn").setAttribute("capture",prev); try{ await openStream(); }catch(_){} setStatus("This device couldn't switch cameras."); $("flipBtn").disabled=false; return; }
       $("flipBtn").disabled=false;
+      hud(shortLabel(S.camLabel)||`${camName()} camera`); return;
     } else { $("modeTag").textContent=`Device camera · ${camName()}`; }
     hud(`${camName()} camera`);
   });
