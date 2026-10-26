@@ -96,6 +96,12 @@ h1{margin:0;font-weight:700;font-size:clamp(44px,9vw,92px);line-height:.98;lette
 /* ---------- camera ---------- */
 .stage{position:relative;aspect-ratio:4/3;max-width:100%;border-radius:var(--radius-card);overflow:hidden;background:var(--bg-2);box-shadow:inset 0 0 0 1px var(--glass-stroke)}
 .stage video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+.stage video.rear{transform:none}
+.flip{position:absolute;top:12px;right:12px;width:44px;height:44px;padding:0;border-radius:50%;display:grid;place-items:center;cursor:pointer;color:var(--text-1);background:rgba(14,12,14,.5);-webkit-backdrop-filter:var(--blur-glass);backdrop-filter:var(--blur-glass);border:1px solid var(--glass-stroke);box-shadow:inset 0 1px 0 rgba(255,255,255,.22);transition:transform .35s var(--spring),opacity .2s}
+.flip:active{transform:scale(.92)}
+.flip:disabled{opacity:.4;cursor:not-allowed}
+.flip .ic{width:20px;height:20px}
+.flip:focus-visible{outline:2px solid var(--hot-light);outline-offset:3px}
 .idle{position:absolute;inset:0;display:grid;place-content:center;gap:var(--space-2);text-align:center;padding:var(--space-4)}
 .idle .big{font-weight:700;font-size:clamp(28px,5.5vw,44px);line-height:1.02;letter-spacing:-.04em}
 .idle p{margin:0 auto;color:var(--text-2);font-size:14.5px;max-width:36ch}
@@ -212,6 +218,7 @@ h1{margin:0;font-weight:700;font-size:clamp(44px,9vw,92px);line-height:.98;lette
         <div class="count" id="count" aria-live="assertive"></div>
         <div class="flash" id="flash"></div>
         <div class="badge" id="badge" hidden></div>
+        <button class="flip" id="flipBtn" type="button" hidden aria-label="Switch between front and rear camera"><svg class="ic" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><path d="M9.2 12.6a2.9 2.9 0 0 1 5.1-1.6"/><path d="M14.8 13.4a2.9 2.9 0 0 1-5.1 1.6"/><path d="M14.6 9.4v1.8h-1.8"/><path d="M9.4 16.6v-1.8h1.8"/></svg></button>
       </div>
 
       <div class="thumbs" id="thumbs" data-n="4"></div>
@@ -284,7 +291,7 @@ const BOOTH_TOKEN    = "dd-Brk_fdikEYv-56tGVLUSJTMK";
     safety:   {bg:"#FF6A2B", ink:"#1E0A02", hit:"#1E0A02", label:"Safety orange"},
     chrome:   {bg:"#C9C6CC", ink:"#161416", hit:"#E2470F", label:"Chrome"}
   };
-  const S = { n:4, frame:"bone", filter:"colour", shots:[], mode:"idle", busy:false, uploaded:false, uploading:false };
+  const S = { n:4, frame:"bone", filter:"colour", shots:[], mode:"idle", busy:false, uploaded:false, uploading:false, facing:"user", stream:null };
   const $ = id => document.getElementById(id);
   const video=$("video"), strip=$("strip"), thumbs=$("thumbs");
   const PW=540, PH=405, M=30, GAP=20, FOOT=200;
@@ -367,6 +374,7 @@ const BOOTH_TOKEN    = "dd-Brk_fdikEYv-56tGVLUSJTMK";
     $("snapBtn").textContent= complete?"All photos taken":`Take photo ${ni+1} of ${n}`;
     $("snapBtn").disabled=complete;
     $("shootBtn").disabled=S.busy;
+    $("flipBtn").disabled=S.busy;
     $("shootBtn").textContent= complete?"Shoot again":"Shoot";
   }
 
@@ -381,17 +389,28 @@ const BOOTH_TOKEN    = "dd-Brk_fdikEYv-56tGVLUSJTMK";
   function flash(){ const f=$("flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
   function onShotAdded(){ render(); if(realCount()===S.n) finish(); }
 
+  const camName=()=>S.facing==="user"?"Front":"Rear";
+  async function openStream(){
+    if(S.stream) S.stream.getTracks().forEach(t=>t.stop());
+    const base={width:{ideal:1280},height:{ideal:960}};
+    let stream;
+    try{ stream=await navigator.mediaDevices.getUserMedia({video:{...base,facingMode:{exact:S.facing}},audio:false}); }
+    catch(e){ stream=await navigator.mediaDevices.getUserMedia({video:{...base,facingMode:S.facing},audio:false}); }
+    S.stream=stream; video.srcObject=stream; await video.play();
+    video.classList.toggle("rear",S.facing==="environment");
+    $("modeTag").textContent=`Live · ${camName()}`;
+  }
   async function startCamera(){
     try{
       if(!navigator.mediaDevices?.getUserMedia) throw 0;
-      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:1280},height:{ideal:960}},audio:false});
-      video.srcObject=stream; await video.play();
+      await openStream();
       video.hidden=false; $("idle").hidden=true; S.mode="live";
-      $("startBtn").hidden=true; $("shootBtn").hidden=false; $("modeTag").textContent="Live";
+      $("startBtn").hidden=true; $("shootBtn").hidden=false;
+      try{ const cams=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==="videoinput"); $("flipBtn").hidden=cams.length<2; }catch(e){ $("flipBtn").hidden=false; }
       try{ await navigator.wakeLock?.request("screen"); }catch(e){}
       setStatus("Camera on. Press Shoot when the whole crew is in frame.");
     }catch(e){
-      S.mode="upload"; $("startBtn").hidden=true; $("snapBtn").hidden=false; $("modeTag").textContent="Device camera";
+      S.mode="upload"; $("startBtn").hidden=true; $("snapBtn").hidden=false; $("flipBtn").hidden=false; $("modeTag").textContent=`Device camera · ${camName()}`;
       $("idleText").textContent="Live preview is blocked on this page, so each photo opens the device camera. Snap, confirm, and it lands on the strip.";
       $("camNote").textContent="Live preview unavailable here. Device camera mode is on."; $("camNote").classList.add("warn");
     }
@@ -406,7 +425,7 @@ const BOOTH_TOKEN    = "dd-Brk_fdikEYv-56tGVLUSJTMK";
       badge.textContent=`Shot ${i+1} of ${S.n}`;
       for(const k of [3,2,1]){ $("count").innerHTML=`<span class="mh">${k}</span>`; await wait(900); }
       $("count").innerHTML=""; flash();
-      S.shots[i]={canvas:cropTo43(video,video.videoWidth,video.videoHeight,true),sample:false};
+      S.shots[i]={canvas:cropTo43(video,video.videoWidth,video.videoHeight,S.facing==="user"),sample:false};
       render(); i=nextIndex(); if(i!==-1) await wait(1100);
     }
     badge.hidden=true; S.busy=false; onShotAdded();
@@ -490,6 +509,18 @@ const BOOTH_TOKEN    = "dd-Brk_fdikEYv-56tGVLUSJTMK";
   $("startBtn").addEventListener("click",startCamera);
   $("snapBtn").addEventListener("click",()=>$("fileIn").click());
   $("shootBtn").addEventListener("click",shootSequence);
+  $("flipBtn").addEventListener("click",async()=>{
+    if(S.busy) return;
+    const prev=S.facing; S.facing=prev==="user"?"environment":"user";
+    $("fileIn").setAttribute("capture",S.facing);
+    if(S.mode==="live"){
+      $("flipBtn").disabled=true;
+      try{ await openStream(); }
+      catch(e){ S.facing=prev; $("fileIn").setAttribute("capture",prev); try{ await openStream(); }catch(_){} setStatus("This device couldn't switch cameras."); $("flipBtn").disabled=false; return; }
+      $("flipBtn").disabled=false;
+    } else { $("modeTag").textContent=`Device camera · ${camName()}`; }
+    hud(`${camName()} camera`);
+  });
   function remember(){ try{ localStorage.setItem("dd_cfg",JSON.stringify({event:$("eventName").value,frame:S.frame,n:S.n,filter:S.filter})); }catch(e){} }
   try{ const c=JSON.parse(localStorage.getItem("dd_cfg")||"{}");
     if(c.event) $("eventName").value=c.event;
